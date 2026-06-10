@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "AM Student App",
+    "slug": "am-student-app",
+    "version": "0.0.1",
+    "platforms": ["android", "ios"],
+    "android": {
+      "package": "com.am_student_app"
+    }
+  }
+}
