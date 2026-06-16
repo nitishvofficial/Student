@@ -16,3 +16,4 @@ ios/Pods/
 ios/*.xcworkspace/xcuserdata
 
 .env
+*.hprof
