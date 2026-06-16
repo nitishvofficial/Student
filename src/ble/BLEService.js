@@ -136,8 +136,15 @@ class BLEServiceInstance {
       this.stopDeviceScan();
       this.manager
         .connectToDevice(deviceId, { timeout })
-        .then(device => {
+        .then(async device => {
           this.device = device;
+          if (Platform.OS === 'android') {
+            try {
+              await this.manager.requestMTUForDevice(device.id, 512);
+            } catch (e) {
+              console.warn(TAG, 'Failed to request MTU:', e.message);
+            }
+          }
           resolve(device);
         })
         .catch(error => {

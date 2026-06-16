@@ -128,7 +128,7 @@ class StudentBLEModuleClass {
 
       // Build and send JOIN (Sends Roll Number)
       const joinMessage = buildJoinMessage(rollNumber);
-      await BLEService.writeCharacteristicWithoutResponse(
+      await BLEService.writeCharacteristic(
         AM_SERVICE_UUID,
         STUDENT_TO_FACULTY_CHAR_UUID,
         joinMessage,
@@ -149,7 +149,7 @@ class StudentBLEModuleClass {
   submitOTP = async (code, onError) => {
     try {
       const message = `${MSG.OTP_VERIFY_PREFIX}${code}`;
-      await BLEService.writeCharacteristicWithoutResponse(
+      await BLEService.writeCharacteristic(
         AM_SERVICE_UUID,
         STUDENT_TO_FACULTY_CHAR_UUID,
         message,
@@ -230,9 +230,11 @@ class StudentBLEModuleClass {
 
     console.log(TAG, 'Faculty message:', message);
 
+    const cleanMessage = message.trim();
+
     // ── JOIN_REJECTED — decode reason and surface to UI ───────────────────
-    if (message.startsWith(MSG.JOIN_REJECTED)) {
-      const reasonCode = message.slice(MSG.JOIN_REJECTED.length).trim();
+    if (cleanMessage.startsWith(MSG.JOIN_REJECTED)) {
+      const reasonCode = cleanMessage.slice(MSG.JOIN_REJECTED.length).trim();
       const humanMessage = friendlyRejectionMessage(reasonCode);
       console.warn(TAG, `JOIN rejected: ${reasonCode} — "${humanMessage}"`);
       BLEService.finishMonitor();
@@ -242,23 +244,23 @@ class StudentBLEModuleClass {
       return;
     }
 
-    if (message === MSG.OTP_REQUEST) {
+    if (cleanMessage === MSG.OTP_REQUEST) {
       onOTPRequested?.();
       return;
     }
 
-    if (message.startsWith(MSG.OTP_PREFIX)) {
-      const otp = message.slice(MSG.OTP_PREFIX.length).trim();
+    if (cleanMessage.startsWith(MSG.OTP_PREFIX)) {
+      const otp = cleanMessage.slice(MSG.OTP_PREFIX.length).trim();
       onOTPReceived?.(otp);
       return;
     }
 
-    if (message === MSG.OTP_WRONG) {
+    if (cleanMessage === MSG.OTP_WRONG) {
       onOTPWrong?.();
       return;
     }
 
-    if (message === MSG.ATTENDANCE_CONFIRMED) {
+    if (cleanMessage === MSG.ATTENDANCE_CONFIRMED) {
       BLEService.finishMonitor();
       this._disconnectSub?.remove();
       BLEService.disconnectDevice().catch(() => {});
