@@ -12,11 +12,13 @@
  *     → Logged in: show AttendanceScreen with the student's real uid + name
  */
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import { StudentAuthProvider, useStudentAuth } from './src/auth/AuthContext';
 import AttendanceScreen from './src/screens/AttendanceScreen';
 import FaceScanScreen from './src/screens/FaceScanScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
+import { studentService } from './src/services/studentService';
 
 export default function App() {
   return (
@@ -39,6 +41,28 @@ function AppContent() {
       );
     }, 2000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Background Sync Lifecycle
+  const appState = useRef(AppState.currentState);
+  useEffect(() => {
+    // Initial sync on cold start
+    studentService.backgroundSyncEmbeddings();
+
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        // App has come to the foreground
+        studentService.backgroundSyncEmbeddings();
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   // If the student identity is not verified yet, show either Scan or Register screen.

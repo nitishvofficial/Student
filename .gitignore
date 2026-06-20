@@ -17,3 +17,6 @@ ios/*.xcworkspace/xcuserdata
 
 .env
 *.hprof
+
+*.apk
+

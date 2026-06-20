@@ -40,6 +40,12 @@ export default function AttendanceScreen({ studentUser }) {
   const [rejectedReason, setRejectedReason] = useState('');
 
   const callbacksRef = useRef({});
+  const phaseRef = useRef(phase);
+
+  // Keep phaseRef in sync so onDisconnected never reads stale closure state
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
 
   useEffect(() => {
     let mounted = true;
@@ -125,7 +131,8 @@ export default function AttendanceScreen({ studentUser }) {
           setPhase('rejected');
         },
         onDisconnected: () => {
-          if (phase !== 'done' && phase !== 'rejected') {
+          // Use phaseRef to avoid stale closure — phase would always be 'joining' here
+          if (phaseRef.current !== 'done' && phaseRef.current !== 'rejected') {
             Alert.alert(
               'Link Dropped',
               'The faculty device disconnected unexpectedly.',

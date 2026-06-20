@@ -30,8 +30,7 @@ export default function FaceScanScreen({
   onNavigateToRegister: () => void;
 }) {
   const [hasPermission, setHasPermission] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [isForceSyncing, setIsForceSyncing] = useState(false);
   const device = useCameraDevice('front');
   // Request a 640x480 format for both video and photo.
   // This applies to takeSnapshot() (which uses the video stream)
@@ -51,30 +50,25 @@ export default function FaceScanScreen({
     scanResult,
   } = useFaceRecognition();
 
-  // Request camera permission and sync student data on mount
-  const doSync = async () => {
-    setIsSyncing(true);
-    setSyncError(null);
-    try {
-      const { count } = await studentService.syncStudentEmbeddings();
-      console.log(`[FaceScanScreen] Sync OK — ${count} student(s) loaded.`);
-    } catch (err: any) {
-      const msg = err?.message || 'Unknown sync error';
-      console.error('[FaceScanScreen] Sync failed:', msg);
-      setSyncError(msg);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
+  // Request camera permission on mount
   useEffect(() => {
     (async () => {
       const status = await Camera.requestCameraPermission();
       setHasPermission(status === 'granted');
-      await doSync();
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleForceSync = async () => {
+    setIsForceSyncing(true);
+    try {
+      await studentService.forceFullSync();
+    } catch (err: any) {
+      console.log('Force sync failed:', err);
+    } finally {
+      setIsForceSyncing(false);
+    }
+  };
 
   // Transition on successful match
   useEffect(() => {
@@ -126,22 +120,16 @@ export default function FaceScanScreen({
           )}
         </View>
 
-        {/* Sync error banner with Retry */}
-        {syncError && (
-          <View style={styles.syncErrorBanner}>
-            <Text style={styles.syncErrorTitle}>⚠️ Sync Failed</Text>
-            <Text style={styles.syncErrorMsg}>{syncError}</Text>
-            <TouchableOpacity
-              style={styles.retryBtn}
-              onPress={doSync}
-              disabled={isSyncing}
-            >
-              <Text style={styles.retryBtnText}>
-                {isSyncing ? 'Retrying…' : '🔄 Retry Sync'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {/* Manual Force Sync (Escape Hatch) */}
+        <TouchableOpacity
+          style={styles.adminSyncBtn}
+          onPress={handleForceSync}
+          disabled={isForceSyncing}
+        >
+          <Text style={styles.adminSyncBtnText}>
+            {isForceSyncing ? '🔄 Syncing...' : '🔄 Force Sync'}
+          </Text>
+        </TouchableOpacity>
 
         {/* Face framing box - NOW ISOLATES THE CAMERA FEED */}
         <View
@@ -278,35 +266,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textTransform: 'uppercase',
   },
-  syncErrorBanner: {
-    backgroundColor: 'rgba(200, 0, 0, 0.85)',
-    borderRadius: 10,
-    padding: 14,
-    marginHorizontal: 8,
-    alignItems: 'center',
-  },
-  syncErrorTitle: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 15,
-    marginBottom: 4,
-  },
-  syncErrorMsg: {
-    color: '#ffd0d0',
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  retryBtn: {
+  adminSyncBtn: {
     marginTop: 10,
-    backgroundColor: '#fff',
-    borderRadius: 6,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
-  retryBtnText: {
-    color: '#cc0000',
-    fontWeight: 'bold',
-    fontSize: 14,
+  adminSyncBtnText: {
+    color: '#ccc',
+    fontSize: 12,
   },
   text: { color: '#fff', textAlign: 'center', padding: 20 },
 });

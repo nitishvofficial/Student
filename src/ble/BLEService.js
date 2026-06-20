@@ -36,7 +36,7 @@ class BLEServiceInstance {
 
   constructor() {
     this.manager = new BleManager();
-    this.manager.setLogLevel(LogLevel.Verbose);
+    this.manager.setLogLevel(LogLevel.Error);
   }
 
   // ─── Lifecycle ──────────────────────────────────────────────────────────────
@@ -100,11 +100,11 @@ class BLEServiceInstance {
    * @param {string[] | null} UUIDs  Service UUIDs to filter (null = all)
    * @param {boolean} [legacyScan]
    */
-  scanDevices = (onDeviceFound, UUIDs = null, legacyScan = false) => {
+  scanDevices = (onDeviceFound, UUIDs = null, allowDuplicates = false) => {
     this.manager
       .startDeviceScan(
         UUIDs,
-        { legacyScan, allowDuplicates: false },
+        { allowDuplicates },
         (error, device) => {
           if (error) {
             console.error(TAG, 'Scan error:', error.message);
@@ -143,6 +143,12 @@ class BLEServiceInstance {
               await this.manager.requestMTUForDevice(device.id, 512);
             } catch (e) {
               console.warn(TAG, 'Failed to request MTU:', e.message);
+            }
+            try {
+              // 1 = High Priority (mitigates 2.4GHz WiFi interference)
+              await this.manager.requestConnectionPriorityForDevice(device.id, 1);
+            } catch (e) {
+              console.warn(TAG, 'Failed to request Priority:', e.message);
             }
           }
           resolve(device);

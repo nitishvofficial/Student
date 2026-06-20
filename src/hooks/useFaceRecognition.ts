@@ -55,6 +55,7 @@ export function useFaceRecognition() {
 
   const startScanLoop = useCallback(async () => {
     console.log('[FaceScanLoop] Starting fast-path loop');
+    console.log('VERIFICATION_STARTED');
 
     while (scanningRef.current) {
       let photoPath: string | null = null;
@@ -88,6 +89,7 @@ export function useFaceRecognition() {
 
         if (result.success) {
           console.log('[FaceRecognition] SUCCESS');
+          console.log('VERIFICATION_COMPLETED');
           scanningRef.current = false;
           setIsScanning(false);
           break;

@@ -42,6 +42,16 @@ class StudentBLEModuleClass {
   scanForSessions = onSessionsUpdated =>
     new Promise(resolve => {
       const discovered = new Map();
+      let lastNotified = 0;
+
+      const notifyDebounced = () => {
+        const now = Date.now();
+        // Throttle UI updates to max once per 500ms to avoid flooding React renders
+        if (now - lastNotified >= 500) {
+          lastNotified = now;
+          onSessionsUpdated(Array.from(discovered.values()));
+        }
+      };
 
       BLEService.scanDevices(
         device => {
@@ -61,20 +71,19 @@ class StudentBLEModuleClass {
             existing.rssi = device.rssi;
             existing.isNearby = isDeviceCloseEnough(device.rssi);
             discovered.set(device.id, existing);
-            onSessionsUpdated(Array.from(discovered.values()));
+            notifyDebounced();
             return;
           }
 
           // ─── 3. Parse Metadata (The "ShareIt" Hidden Path) ───
-          // We look for info in Service Data instead of the Device Name.
-          // serviceData is a map { [uuid]: base64Value }
           const sessionInfo = this._parseSessionInfo(device);
           if (sessionInfo) {
             discovered.set(device.id, sessionInfo);
-            onSessionsUpdated(Array.from(discovered.values()));
+            notifyDebounced();
           }
         },
         [AM_SERVICE_UUID],
+        true, // allowDuplicates — needed to get continuous RSSI updates
       );
 
       this._scanTimer = setTimeout(() => {
@@ -128,7 +137,7 @@ class StudentBLEModuleClass {
 
       // Build and send JOIN (Sends Roll Number)
       const joinMessage = buildJoinMessage(rollNumber);
-      await BLEService.writeCharacteristic(
+      await BLEService.writeCharacteristicWithoutResponse(
         AM_SERVICE_UUID,
         STUDENT_TO_FACULTY_CHAR_UUID,
         joinMessage,
@@ -149,7 +158,7 @@ class StudentBLEModuleClass {
   submitOTP = async (code, onError) => {
     try {
       const message = `${MSG.OTP_VERIFY_PREFIX}${code}`;
-      await BLEService.writeCharacteristic(
+      await BLEService.writeCharacteristicWithoutResponse(
         AM_SERVICE_UUID,
         STUDENT_TO_FACULTY_CHAR_UUID,
         message,
@@ -237,10 +246,17 @@ class StudentBLEModuleClass {
       const reasonCode = cleanMessage.slice(MSG.JOIN_REJECTED.length).trim();
       const humanMessage = friendlyRejectionMessage(reasonCode);
       console.warn(TAG, `JOIN rejected: ${reasonCode} — "${humanMessage}"`);
-      BLEService.finishMonitor();
-      this._disconnectSub?.remove();
-      BLEService.disconnectDevice().catch(() => {});
+      
+      // 1. Instantly update UI
       onRejected?.(humanMessage);
+
+      // 2. Tear down BLE connection asynchronously
+      setTimeout(() => {
+        BLEService.finishMonitor();
+        this._disconnectSub?.remove();
+        BLEService.disconnectDevice().catch(() => {});
+      }, 300);
+      
       return;
     }
 
@@ -261,10 +277,16 @@ class StudentBLEModuleClass {
     }
 
     if (cleanMessage === MSG.ATTENDANCE_CONFIRMED) {
-      BLEService.finishMonitor();
-      this._disconnectSub?.remove();
-      BLEService.disconnectDevice().catch(() => {});
+      // 1. Instantly update UI to remove lag
       onAttendanceConfirmed?.();
+
+      // 2. Tear down BLE connection asynchronously without blocking the UI thread
+      setTimeout(() => {
+        BLEService.finishMonitor();
+        this._disconnectSub?.remove();
+        BLEService.disconnectDevice().catch(() => {});
+      }, 300);
+      
       return;
     }
 
