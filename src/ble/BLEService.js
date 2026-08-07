@@ -102,20 +102,16 @@ class BLEServiceInstance {
    */
   scanDevices = (onDeviceFound, UUIDs = null, allowDuplicates = false) => {
     this.manager
-      .startDeviceScan(
-        UUIDs,
-        { allowDuplicates },
-        (error, device) => {
-          if (error) {
-            console.error(TAG, 'Scan error:', error.message);
-            this.manager.stopDeviceScan();
-            return;
-          }
-          if (device) {
-            onDeviceFound(device);
-          }
-        },
-      )
+      .startDeviceScan(UUIDs, { allowDuplicates }, (error, device) => {
+        if (error) {
+          console.error(TAG, 'Scan error:', error.message);
+          this.manager.stopDeviceScan();
+          return;
+        }
+        if (device) {
+          onDeviceFound(device);
+        }
+      })
       .catch(e => console.error(TAG, 'startDeviceScan threw:', e));
   };
 
@@ -146,7 +142,10 @@ class BLEServiceInstance {
             }
             try {
               // 1 = High Priority (mitigates 2.4GHz WiFi interference)
-              await this.manager.requestConnectionPriorityForDevice(device.id, 1);
+              await this.manager.requestConnectionPriorityForDevice(
+                device.id,
+                1,
+              );
             } catch (e) {
               console.warn(TAG, 'Failed to request Priority:', e.message);
             }

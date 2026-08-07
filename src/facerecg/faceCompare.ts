@@ -43,7 +43,7 @@ export function cosineSimilarity(a: number[], b: number[]): number {
  *   - Too low (0.35-) → may accept imposters
  * For a controlled classroom setting 0.48 is extremely reliable without hardware alignment.
  */
-export const VERIFICATION_THRESHOLD = 0.60;
+export const VERIFICATION_THRESHOLD = 0.48;
 
 /**
  * Checks if two embeddings represent the same person.

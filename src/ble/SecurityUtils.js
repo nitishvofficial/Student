@@ -37,6 +37,10 @@ export function friendlyRejectionMessage(code) {
       return 'You have already joined this session.';
     case 'SESSION_CLOSED':
       return 'The attendance window is closed.';
+    case 'MAX_ATTEMPTS':
+      return 'Too many incorrect PIN attempts. Please contact your instructor.';
+    case 'MANUAL':
+      return 'Attendance manually updated by instructor.';
     default:
       return 'Connection rejected by faculty device.';
   }

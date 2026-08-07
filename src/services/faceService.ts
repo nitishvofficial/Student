@@ -63,11 +63,15 @@ export const faceService = {
     }
 
     const isDevBypass = typeof __DEV__ !== 'undefined' && __DEV__;
-    const hasMatched = bestMatchId && (maxSimilarity >= VERIFICATION_THRESHOLD || isDevBypass);
+    const hasMatched =
+      bestMatchId && (maxSimilarity >= VERIFICATION_THRESHOLD || isDevBypass);
 
     if (hasMatched) {
       const matchPercent = (maxSimilarity * 100).toFixed(0);
-      const devSuffix = isDevBypass && maxSimilarity < VERIFICATION_THRESHOLD ? ' (Dev Bypass)' : '';
+      const devSuffix =
+        isDevBypass && maxSimilarity < VERIFICATION_THRESHOLD
+          ? ' (Dev Bypass)'
+          : '';
       return {
         success: true,
         studentId: bestMatchId!,

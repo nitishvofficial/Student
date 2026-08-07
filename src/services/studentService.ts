@@ -18,18 +18,21 @@ export const studentService = {
    */
   async backgroundSyncEmbeddings(): Promise<void> {
     const { storageService } = await import('./storageService');
-    const lastSyncedAt = storageService.getObject('last_synced_at') as string | null;
+    const lastSyncedAt = storageService.getObject('last_synced_at') as
+      | string
+      | null;
     const now = Date.now();
 
     // Check staleness threshold if not forcing
     const lastSyncMs = lastSyncedAt ? new Date(lastSyncedAt).getTime() : 0;
-    
+
     if (lastSyncedAt) {
       console.log('CACHE_LOADED');
     } else {
       console.log('CACHE_EMPTY');
     }
-    if (now - lastSyncMs < 5 * 60 * 1000) { // 5 minutes threshold
+    if (now - lastSyncMs < 5 * 60 * 1000) {
+      // 5 minutes threshold
       console.log('USING_LOCAL_CACHE');
       return;
     }
@@ -43,23 +46,39 @@ export const studentService = {
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
       return new Promise((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error('TIMEOUT')), ms);
-        promise.then(v => { clearTimeout(timer); resolve(v); })
-               .catch(e => { clearTimeout(timer); reject(e); });
+        promise
+          .then(v => {
+            clearTimeout(timer);
+            resolve(v);
+          })
+          .catch(e => {
+            clearTimeout(timer);
+            reject(e);
+          });
       });
     };
 
-    const fetchWithRetry = async <T>(operation: () => Promise<T>): Promise<T> => {
+    const fetchWithRetry = async <T>(
+      operation: () => PromiseLike<{ data: T | null; error: any }>,
+    ): Promise<{ data: T | null; error: any }> => {
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
         try {
-          return await withTimeout(operation(), SYNC_TIMEOUT_MS);
+          return await withTimeout(
+            Promise.resolve(operation()),
+            SYNC_TIMEOUT_MS,
+          );
         } catch (err: any) {
           const msg = err.message || '';
           if (msg.includes('Unexpected token') || msg.includes('JSON')) {
-            console.error('[StudentService] Captive Portal/Firewall detected (HTML returned).');
+            console.error(
+              '[StudentService] Captive Portal/Firewall detected (HTML returned).',
+            );
             throw new Error('CAPTIVE_PORTAL');
           }
-          if (attempt === MAX_RETRIES) throw err;
-          await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt))); // Exp backoff
+          if (attempt === MAX_RETRIES) {
+            throw err;
+          }
+          await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
         }
       }
       throw new Error('UNREACHABLE');
@@ -69,39 +88,46 @@ export const studentService = {
       let fetchedStudents: any[] = [];
       let page = 0;
       const PAGE_SIZE = 200;
-      
+
       if (lastSyncedAt) {
         // DELTA SYNC
         console.log('[StudentService] Fetching delta updates...');
-        const res = await fetchWithRetry(() => 
+        const res = await fetchWithRetry(() =>
           supabase
             .from('students')
             .select('student_uid, name, face_embedding')
-            .gt('updated_at', lastSyncedAt)
+            .gt('updated_at', lastSyncedAt),
         );
-        if (res.error) throw res.error;
+        if (res.error) {
+          throw res.error;
+        }
         fetchedStudents = res.data || [];
       } else {
         // FULL PAGINATED SYNC
         console.log('[StudentService] Performing full paginated sync...');
         while (true) {
-          const res = await fetchWithRetry(() => 
+          const res = await fetchWithRetry(() =>
             supabase
               .from('students')
               .select('student_uid, name, face_embedding')
-              .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
+              .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1),
           );
-          if (res.error) throw res.error;
+          if (res.error) {
+            throw res.error;
+          }
           const data = res.data || [];
           fetchedStudents = fetchedStudents.concat(data);
-          if (data.length < PAGE_SIZE) break;
+          if (data.length < PAGE_SIZE) {
+            break;
+          }
           page++;
         }
       }
 
       if (fetchedStudents.length > 0) {
-        const currentCache = storageService.getObject('studentEmbeddings') || {};
-        
+        const currentCache =
+          storageService.getObject('studentEmbeddings') || {};
+
         fetchedStudents.forEach((s: any) => {
           if (s.face_embedding && Array.isArray(s.face_embedding)) {
             const raw: number[] = s.face_embedding;
@@ -116,16 +142,19 @@ export const studentService = {
 
         storageService.setObject('studentEmbeddings', currentCache);
         console.log('USING_UPDATED_CACHE');
-        console.log(`[StudentService] Merged ${fetchedStudents.length} student updates into cache.`);
+        console.log(
+          `[StudentService] Merged ${fetchedStudents.length} student updates into cache.`,
+        );
       }
 
       storageService.setObject('last_synced_at', new Date().toISOString());
       console.log('BACKGROUND_SYNC_COMPLETED');
-      
     } catch (err: any) {
       // Fail silently, preserving cache so the app functions normally
       console.log('BACKGROUND_SYNC_FAILED');
-      console.log(`[StudentService] Background sync failed (${err.message}). Using local cache.`);
+      console.log(
+        `[StudentService] Background sync failed (${err.message}). Using local cache.`,
+      );
       console.log('USING_LOCAL_CACHE');
     }
   },

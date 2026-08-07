@@ -39,14 +39,20 @@ export function useFaceRecognition() {
     const loadModels = async () => {
       try {
         await faceService.initializeModels();
-        if (mounted) setIsModelsLoaded(true);
+        if (mounted) {
+          setIsModelsLoaded(true);
+        }
       } catch (e: any) {
         console.error('[FaceRecognition] Failed to load TFLite model:', e);
-        if (mounted) setError(e.message || 'Failed to load AI model');
+        if (mounted) {
+          setError(e.message || 'Failed to load AI model');
+        }
       }
     };
     loadModels();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -72,7 +78,6 @@ export function useFaceRecognition() {
         const photo = await camera.takePhoto({
           flash: 'off',
           enableShutterSound: false,
-          qualityPrioritization: 'speed',
         });
 
         photoPath = photo.path.startsWith('file://')
@@ -81,7 +86,9 @@ export function useFaceRecognition() {
 
         // 2. Run the entire face recognition pipeline in native Kotlin.
         setScanResult({ success: false, message: '🧠 Analyzing...' });
-        const { embedding } = await TFLiteModule.recognizeFaceFromFile(photoPath);
+        const { embedding } = await TFLiteModule.recognizeFaceFromFile(
+          photoPath,
+        );
 
         // 3. Match the embedding against MMKV-cached student embeddings
         const result = await faceService.matchEmbedding(embedding);
@@ -94,7 +101,6 @@ export function useFaceRecognition() {
           setIsScanning(false);
           break;
         }
-
       } catch (err: any) {
         console.error('[FaceScanLoop] Error:', err);
         setScanResult({

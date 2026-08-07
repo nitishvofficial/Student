@@ -78,7 +78,6 @@ export default function RegisterScreen({ onBack }: RegisterScreenProps) {
       const photo = await cameraRef.current.takePhoto({
         flash: 'off',
         enableShutterSound: false,
-        qualityPrioritization: 'speed',
       });
       setCapturedPhoto(photo.path);
       setShowCamera(false);
@@ -90,13 +89,29 @@ export default function RegisterScreen({ onBack }: RegisterScreenProps) {
   // Submit Registration
   const handleSubmit = async () => {
     // Validate inputs
-    if (!studentUid.trim()) return Alert.alert('Validation Error', 'Student UID is required.');
-    if (!rollNumber.trim()) return Alert.alert('Validation Error', 'Roll Number is required.');
-    if (!name.trim()) return Alert.alert('Validation Error', 'Full Name is required.');
-    if (!capturedPhoto) return Alert.alert('Validation Error', 'Face photo is required. Please capture photo.');
+    if (!studentUid.trim()) {
+      return Alert.alert('Validation Error', 'Student UID is required.');
+    }
+    if (!rollNumber.trim()) {
+      return Alert.alert('Validation Error', 'Roll Number is required.');
+    }
+    if (!name.trim()) {
+      return Alert.alert('Validation Error', 'Full Name is required.');
+    }
+    if (!capturedPhoto) {
+      return Alert.alert(
+        'Validation Error',
+        'Face photo is required. Please capture photo.',
+      );
+    }
 
     const parsedSem = parseInt(semester, 10);
-    if (isNaN(parsedSem)) return Alert.alert('Validation Error', 'Semester must be a valid number.');
+    if (isNaN(parsedSem)) {
+      return Alert.alert(
+        'Validation Error',
+        'Semester must be a valid number.',
+      );
+    }
 
     setIsRegistering(true);
 
@@ -106,40 +121,41 @@ export default function RegisterScreen({ onBack }: RegisterScreenProps) {
 
     try {
       // 1. Extract embedding using native TFLite module
-      console.log('[RegisterScreen] Running face embedding extraction on photo:', photoPath);
+      console.log(
+        '[RegisterScreen] Running face embedding extraction on photo:',
+        photoPath,
+      );
       const { embedding } = await TFLiteModule.recognizeFaceFromFile(photoPath);
 
       if (!embedding || embedding.length === 0) {
-        throw new Error('Could not extract face embedding. Ensure your face is fully visible.');
+        throw new Error(
+          'Could not extract face embedding. Ensure your face is fully visible.',
+        );
       }
 
       // 2. Insert/Upsert into Supabase students table
       console.log('[RegisterScreen] Upserting to Supabase...');
-      const { error } = await supabase
-        .from('students')
-        .upsert(
-          {
-            student_uid: studentUid.trim(),
-            roll_number: rollNumber.trim(),
-            name: name.trim(),
-            course: course.trim(),
-            branch: branch.trim(),
-            semester: parsedSem,
-            section: section.trim(),
-            face_embedding: embedding,
-          },
-          { onConflict: 'student_uid' }
-        );
+      const { error } = await supabase.from('students').upsert(
+        {
+          student_uid: studentUid.trim(),
+          roll_number: rollNumber.trim(),
+          name: name.trim(),
+          course: course.trim(),
+          branch: branch.trim(),
+          semester: parsedSem,
+          section: section.trim(),
+          face_embedding: embedding,
+        },
+        { onConflict: 'student_uid' },
+      );
 
       if (error) {
         throw new Error(`Supabase error ${error.code ?? ''}: ${error.message}`);
       }
 
-      Alert.alert(
-        'Success',
-        `Student '${name}' registered successfully!`,
-        [{ text: 'OK', onPress: onBack }]
-      );
+      Alert.alert('Success', `Student '${name}' registered successfully!`, [
+        { text: 'OK', onPress: onBack },
+      ]);
     } catch (err: any) {
       console.error('[RegisterScreen] Registration failed:', err);
       Alert.alert('Registration Failed', err.message || 'An error occurred.');
@@ -160,18 +176,25 @@ export default function RegisterScreen({ onBack }: RegisterScreenProps) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Student Registration</Text>
-          <Text style={styles.subtitle}>Create profile and enroll biometric face embedding</Text>
+          <Text style={styles.subtitle}>
+            Create profile and enroll biometric face embedding
+          </Text>
         </View>
 
         {showCamera ? (
           /* Camera View */
           <View style={styles.cameraContainer}>
             {!hasCameraPermission ? (
-              <Text style={styles.errorText}>Camera permission not granted.</Text>
+              <Text style={styles.errorText}>
+                Camera permission not granted.
+              </Text>
             ) : !device ? (
               <Text style={styles.errorText}>Front camera not found.</Text>
             ) : (
@@ -186,15 +209,23 @@ export default function RegisterScreen({ onBack }: RegisterScreenProps) {
                   resizeMode="cover"
                 />
                 <View style={styles.cameraOverlay}>
-                  <Text style={styles.cameraGuideText}>Center face in the frame</Text>
+                  <Text style={styles.cameraGuideText}>
+                    Center face in the frame
+                  </Text>
                 </View>
               </View>
             )}
             <View style={styles.cameraControls}>
-              <TouchableOpacity style={styles.captureBtn} onPress={handleCapture}>
+              <TouchableOpacity
+                style={styles.captureBtn}
+                onPress={handleCapture}
+              >
                 <View style={styles.captureBtnInner} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.cancelCameraBtn} onPress={() => setShowCamera(false)}>
+              <TouchableOpacity
+                style={styles.cancelCameraBtn}
+                onPress={() => setShowCamera(false)}
+              >
                 <Text style={styles.cancelCameraText}>Cancel</Text>
               </TouchableOpacity>
             </View>
@@ -206,15 +237,26 @@ export default function RegisterScreen({ onBack }: RegisterScreenProps) {
             <View style={styles.photoSection}>
               {capturedPhoto ? (
                 <View style={styles.photoPreviewContainer}>
-                  <Image source={{ uri: `file://${capturedPhoto}` }} style={styles.photoPreview} />
-                  <TouchableOpacity style={styles.recaptureBtn} onPress={() => setShowCamera(true)}>
+                  <Image
+                    source={{ uri: `file://${capturedPhoto}` }}
+                    style={styles.photoPreview}
+                  />
+                  <TouchableOpacity
+                    style={styles.recaptureBtn}
+                    onPress={() => setShowCamera(true)}
+                  >
                     <Text style={styles.recaptureText}>Retake Photo</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
-                <TouchableOpacity style={styles.captureTrigger} onPress={() => setShowCamera(true)}>
+                <TouchableOpacity
+                  style={styles.captureTrigger}
+                  onPress={() => setShowCamera(true)}
+                >
                   <Text style={styles.captureTriggerIcon}>📸</Text>
-                  <Text style={styles.captureTriggerText}>Capture Face Biometrics</Text>
+                  <Text style={styles.captureTriggerText}>
+                    Capture Face Biometrics
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -319,7 +361,11 @@ export default function RegisterScreen({ onBack }: RegisterScreenProps) {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.backBtn} onPress={onBack} disabled={isRegistering}>
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={onBack}
+              disabled={isRegistering}
+            >
               <Text style={styles.backBtnText}>Back to Login</Text>
             </TouchableOpacity>
           </View>
@@ -426,7 +472,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: BORDER,
-    borderStyle: 'dashed',
     backgroundColor: CARD_BG,
     justifyContent: 'center',
     alignItems: 'center',

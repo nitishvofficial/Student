@@ -120,7 +120,7 @@ export default function AttendanceScreen({ studentUser }) {
           setPhase('otp');
           setOtpInput('');
           setOtpError('❌ INVALID OTP');
-          setStatusMsg('The code provided does not match.');
+          setStatusMsg('Incorrect PIN. Please try again.'); // Bug 7 fix: reset stale confirming message
         },
         onAttendanceConfirmed: () => {
           setPhase('done');
@@ -172,6 +172,7 @@ export default function AttendanceScreen({ studentUser }) {
       return;
     }
     setPhase('confirming');
+    setStatusMsg('Verifying your PIN...'); // Bug 1 fix: clear misleading stale message
     setOtpError('');
     try {
       await StudentBLEModule.submitOTP(otpInput, () => {
@@ -185,9 +186,14 @@ export default function AttendanceScreen({ studentUser }) {
   }, [otpInput]);
 
   const handleReset = useCallback(() => {
+    callbacksRef.current = {}; // Bug 6 fix: clear stale callbacks before disconnect
     setPhase('idle');
     setOtpInput('');
     setSessions([]);
+    setStatusMsg('');
+    setOtpError('');
+    setRejectedReason('');
+    StudentBLEModule.disconnect();
   }, []);
 
   // ── Render ──────────────────────────────────────────────────────────────────

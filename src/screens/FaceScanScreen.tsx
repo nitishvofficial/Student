@@ -56,7 +56,6 @@ export default function FaceScanScreen({
       const status = await Camera.requestCameraPermission();
       setHasPermission(status === 'granted');
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleForceSync = async () => {
@@ -136,7 +135,7 @@ export default function FaceScanScreen({
           style={[
             styles.frameBox,
             scanResult?.success && styles.frameBoxSuccess,
-            { overflow: 'hidden' }
+            { overflow: 'hidden' },
           ]}
         >
           <Camera
@@ -173,13 +172,15 @@ export default function FaceScanScreen({
                   <Text style={styles.buttonText}>Start Scan</Text>
                 )}
               </TouchableOpacity>
-              
+
               {!isScanning && (
                 <TouchableOpacity
                   style={styles.registerButton}
                   onPress={onNavigateToRegister}
                 >
-                  <Text style={styles.registerButtonText}>Register New Student</Text>
+                  <Text style={styles.registerButtonText}>
+                    Register New Student
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>

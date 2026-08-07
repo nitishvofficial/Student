@@ -44,12 +44,23 @@ class StudentBLEModuleClass {
       const discovered = new Map();
       let lastNotified = 0;
 
+      let throttleTimer = null;
       const notifyDebounced = () => {
         const now = Date.now();
         // Throttle UI updates to max once per 500ms to avoid flooding React renders
         if (now - lastNotified >= 500) {
+          if (throttleTimer) {
+            clearTimeout(throttleTimer);
+            throttleTimer = null;
+          }
           lastNotified = now;
           onSessionsUpdated(Array.from(discovered.values()));
+        } else if (!throttleTimer) {
+          throttleTimer = setTimeout(() => {
+            throttleTimer = null;
+            lastNotified = Date.now();
+            onSessionsUpdated(Array.from(discovered.values()));
+          }, 500 - (now - lastNotified));
         }
       };
 
@@ -137,7 +148,7 @@ class StudentBLEModuleClass {
 
       // Build and send JOIN (Sends Roll Number)
       const joinMessage = buildJoinMessage(rollNumber);
-      await BLEService.writeCharacteristicWithoutResponse(
+      await BLEService.writeCharacteristic(
         AM_SERVICE_UUID,
         STUDENT_TO_FACULTY_CHAR_UUID,
         joinMessage,
@@ -158,7 +169,7 @@ class StudentBLEModuleClass {
   submitOTP = async (code, onError) => {
     try {
       const message = `${MSG.OTP_VERIFY_PREFIX}${code}`;
-      await BLEService.writeCharacteristicWithoutResponse(
+      await BLEService.writeCharacteristic(
         AM_SERVICE_UUID,
         STUDENT_TO_FACULTY_CHAR_UUID,
         message,
@@ -168,6 +179,18 @@ class StudentBLEModuleClass {
       console.error(TAG, 'submitOTP error:', err.message);
       onError?.(err);
     }
+  };
+
+  /**
+   * Disconnect the current session and clean up monitor.
+   */
+  disconnect = async () => {
+    BLEService.finishMonitor();
+    if (this._disconnectSub) {
+      this._disconnectSub.remove();
+      this._disconnectSub = null;
+    }
+    await BLEService.disconnectDevice().catch(() => {});
   };
 
   destroy = async () => {
@@ -246,17 +269,22 @@ class StudentBLEModuleClass {
       const reasonCode = cleanMessage.slice(MSG.JOIN_REJECTED.length).trim();
       const humanMessage = friendlyRejectionMessage(reasonCode);
       console.warn(TAG, `JOIN rejected: ${reasonCode} — "${humanMessage}"`);
-      
+
       // 1. Instantly update UI
       onRejected?.(humanMessage);
 
-      // 2. Tear down BLE connection asynchronously
+      // 2. Remove disconnect listener FIRST to prevent false "Link Dropped" alert,
+      //    then tear down connection asynchronously.
       setTimeout(() => {
         BLEService.finishMonitor();
-        this._disconnectSub?.remove();
+        // Remove sub BEFORE disconnecting so the disconnect event is never delivered
+        if (this._disconnectSub) {
+          this._disconnectSub.remove();
+          this._disconnectSub = null;
+        }
         BLEService.disconnectDevice().catch(() => {});
-      }, 300);
-      
+      }, 0);
+
       return;
     }
 
@@ -277,16 +305,21 @@ class StudentBLEModuleClass {
     }
 
     if (cleanMessage === MSG.ATTENDANCE_CONFIRMED) {
-      // 1. Instantly update UI to remove lag
+      // 1. Remove disconnect listener IMMEDIATELY to prevent false "Link Dropped" alert
+      if (this._disconnectSub) {
+        this._disconnectSub.remove();
+        this._disconnectSub = null;
+      }
+
+      // 2. Instantly update UI
       onAttendanceConfirmed?.();
 
-      // 2. Tear down BLE connection asynchronously without blocking the UI thread
+      // 3. Tear down connection asynchronously
       setTimeout(() => {
         BLEService.finishMonitor();
-        this._disconnectSub?.remove();
         BLEService.disconnectDevice().catch(() => {});
-      }, 300);
-      
+      }, 50);
+
       return;
     }
 
